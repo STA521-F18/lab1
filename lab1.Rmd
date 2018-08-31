@@ -1,0 +1,236 @@
+---
+title: "Demo RStudio and EDA"
+author: Merlise Clyde
+output:
+  pdf_document: default
+  html_notebook: default
+  html_document: default
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code.
+
+At the very beginning is an (optional) YAML header surrounded by `---`s, the header specifies useful meta data. 
+
+Below the header is the first code chunk, this chunk sets global options that apply to every chunk in your file. This is done by calling `knitr::opts_chunk$set` in this code chunk. Note that these global defaults can be overwritten in individual chunk headers. `include = FALSE` prevents both codes and results from appearing.
+
+To understand `echo = TRUE`, `message = FALSE` and `warning = FALSE`, read [RMarkdown tips and tricks](http://www.science.smith.edu/~amcnamara/sds291/RMarkdownTips.html). _Energetic Students: read the "Shortening knit time" section and try it in this file_
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file).
+
+##  Exercise 8 from ISLR Chapter 2
+
+The following illustrate commands for exploring this exercise using R and various packages for the `College` data.
+
+### Libraries
+
+Try to load the `ISLR` library
+```{r}
+library(ISLR)
+```
+
+If it is not available you will need to install the  library from CRAN. Click on  *Packages*  then *Install*.  Enter the package name then click on the Install button.
+
+You can also install from the console/command line using
+`install.packages("ISLR")`.
+
+Ready?
+
+###  Getting the College data
+
+Next we will need to load the dataset.  This is part of the library so we will not need to read it in using `read.csv` but rather we will use the `data` function to load it from the library.
+
+```{r data}
+data(College)
+```
+
+This loads the dataframe `College`.  Note you can always see the content of any `R` object by simply typing its name.
+```{r, eval=FALSE}
+College
+```
+
+
+For information about the variables, read the text or enter
+```{r}
+help(College)
+```
+
+The info will appear in the `help` tab.
+
+To see explore the data, you can use the command `View(College)`.
+
+This will open a new tab, where you may scroll left and right to look at the rows and columns.
+In the `View` you should see that the first column is the College/University name.  These can be extracted using `rownames(College)`.  Let's print out the first 5
+
+```{r}
+rownames(College)[1:5]
+```
+
+
+
+### Summary
+
+```{r}
+summary(College)
+```
+
+### Dimensions of Data
+
+How many observations and variables are in the dataframe?
+
+
+```{r dim, echo=FALSE}
+d = dim(College)
+d
+```
+
+Suppose we want to refer to those numbers in the text.  We can extract them using n = `r d[1]` and d = `r d[2]`.
+Look at the code to see how we extracted them.   
+
+### Scatter plot matrices
+
+There `base` `R` version of scatter plot matrices is obtained using the `pairs` function to plot all variables versus each other.  We can use subsetting of columns of the dataframe to
+look at the first 5 columns.  
+
+```{r, fig.width=8}
+pairs(College[, 1:5])
+```
+
+We can also look at this using the `ggpairs` function.
+Install the library `GGally` if it is not available (and any dependent libraries) and load it.
+
+```{r ggpairs, warning=FALSE, message=FALSE, fig.width=8}
+library(GGally)
+ggpairs(College, columns= c(1,3:5, 2))
+```
+
+The last variable, `2` in this case, refers to  our response variable.
+
+Note `ggpairs` will show its progress in your output and using warning=FALSE or message=FALSE does not suppress it. This answer on [this Stackexchange post:](http://stackoverflow.com/questions/41577362/suppress-ggpairs-messages-when-generating-plot) provided the trick or `progress=F` to suppress the progress bar.
+
+```{r ggpairs-good, warning=FALSE, message=FALSE, results='hide', fig.width=8}
+gp = ggpairs(College, columns= c(1,3:5, 2))
+print(gp, progress=F)
+```
+
+The `ggpairs` function realizes that the variable `Private` is categorial and plots side by side histograms.  The density plots are also useful for seeing the skewness in the marginal distributions.
+
+What other features do these plots indicate?  _(Think about assumptions for linear regression)_
+
+
+### New variables
+
+Let's create a new variable `Elite` by binning the `Top10perc` variable. We are going to divide universities into two groups based on whether or not the proportion of students coming from the top 10% of their high school classes exceeds 50 %.  We will use the library `dplyr` to illustrate some of the possible transformations and the idea of pipes, which are quite powerful once you get the hang of them!
+
+For students who are unfamiliar with `dplyr`, read this [intro](https://cran.r-project.org/web/packages/dplyr/vignettes/dplyr.html) first.
+
+```{r}
+library(dplyr)
+College = College %>% 
+  mutate(Elite = factor(Top10perc > 50)) %>%
+  mutate(Elite = 
+           recode(Elite, 'TRUE' = "Yes", 'FALSE'="No"))
+  
+```
+
+
+_What is the above doing?_    Document the code here.
+
+Compare to the base `R` code:
+
+```{r, evaluate=FALSE}
+Elite=rep("No",nrow(College))
+Elite[College$Top10perc >50]="Yes"
+Elite=as.factor(Elite)
+college=data.frame(College ,Elite)
+```
+
+_How many Elite universities are there?_
+
+```{r}
+summary(College$Elite)
+```
+
+### Side by Side Boxplots
+
+Let's plot the variable `Outstate` versus `Elite` using side-by-side boxplots.  Using `base R` we would enter
+
+```{r, fig.width=6}
+boxplot(Outstate ~ Elite, data=College, 
+        ylab="Outstate", xlab="Elite")
+title("Distribution of Out of State Tuition")
+```
+
+
+Now for the `ggplot` version:
+
+
+```{r, fig.width=6}
+library(ggplot2)
+my.bp <<-ggplot(data=College, aes(y= Outstate, x=Elite)) # Creates boxplots
+my.bp <- my.bp + geom_boxplot() # Adds color
+my.bp <- my.bp + ggtitle("Distribution of Out of State Tuition") # Adds a title
+my.bp <- my.bp +  ylab("Outstate") + xlab("Elite") # Adds lables for axes
+my.bp # displays the boxplots
+```
+
+
+### Conditional Plots
+
+Let's look at the distribution of Out of state tuition versus Elite status for Private versun Public universities using _conditional plots_
+
+```{r, fig.width=8}
+coplot(Outstate ~ Elite | Private, data=College)
+```
+
+
+##  ggplot conditional plot
+
+```{r, fig.width=6, echo=TRUE}
+library(ggplot2)
+ggplot(College, aes(x = Elite, y = Outstate, 
+                    group = Private, 
+                    color = Private)) +
+   geom_point() + facet_grid(.~Private) + ggtitle("Distribution of Out of State Tuition") 
+
+```
+
+
+## Next Steps
+
+Update this document and explore the other variables thinking about the objective of predicting `Apps`.  Document what you discover thinking about models to predict `Apps`.
+
+## Fit a linear model
+
+Use the `lm` function as described in class to fit a linear model with `Apps` as the response variable and one of the predictors.   
+
+```{r}
+# add lm code here
+# 
+# mymodel = lm(Apps ~ XXX, data=College)
+```
+
+
+For the fitted model, produce diagnostic plots
+
+```{r}
+# add diagnostic plots here
+# plot(mymodel)
+```
+
+Discuss whether the model seems appropriate in terms of assumptions.
+
+
+## Updating your work on GitHub
+
+In the upper right you should see a tab labeled `Git`.  Click on that to see a list of files that have been added/changed.
+
+To save changes to github, check the box of any file to add/update.  Then click on the `Commit` link (just above path).  In the pop-up window add a Commit message (something meaningful that identifies the changes made).  When done, click on Commit to save the changes.  Click on the Green Up arrow to `push` your changes to Github.
+
